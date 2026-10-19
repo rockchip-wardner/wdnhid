@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wdnhid"
+version = "0.1.0"
+description = "USB Gadget HID bindings for Linux: write HID reports to /dev/hidgN to simulate keyboard / mouse / digitizer / etc. on the host side via OTG."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "wdnhid maintainers"},
+]
+keywords = ["wdnhid", "usb", "gadget", "hid", "otg", "rockchip", "keyboard", "digitizer"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Hardware :: Hardware Drivers",
+]
+
+dependencies = []
+
+[project.urls]
+Homepage = "https://example.invalid/wdnhid"
+Issues = "https://example.invalid/wdnhid/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["wdnhid*"]
+
+[tool.setuptools.package-data]
+wdnhid = ["py.typed"]

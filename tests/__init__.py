@@ -1,0 +1,1 @@
+"""Pytest config for wdnhid."""

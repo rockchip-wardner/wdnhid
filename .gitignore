@@ -1,0 +1,29 @@
+# wdnhid — files that should never enter the repo.
+
+# --- Python bytecode / caches ------------------------------------------------ #
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- build / install artifacts ---------------------------------------------- #
+# `pip install -e .` puts these here; rebuild via `python -m build`.
+build/
+dist/
+src/*.egg-info/
+src/wdnhid.egg-info/
+
+# --- IDE / editor scratch --------------------------------------------------- #
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# --- venv leakage (defensive — wdnhid lives inside .venv/src/wdnhid/) ----- #
+# wdnhid is itself under .venv/ but we want only its source tracked, not
+# anything that might wander in (e.g. .venv/lib/.../site-packages/wdnhid-*.dist-info/
+# if the editable install metadata gets materialized here).
+*.dist-info/
