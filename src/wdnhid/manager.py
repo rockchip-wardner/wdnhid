@@ -288,9 +288,17 @@ def setup_gadget(
         gadget_root / "functions/hid.usb0"
     )
 
-    # Function 1: Digitizer
+    # Function 1: Digitizer. bInterfaceProtocol=3 puts the host's HID
+    # stack into *Digitizer* class — which is what binds the device as
+    # a touchscreen/tablet in Tablet PC Settings, lets Paint accept
+    # pen events, and routes the touch to the screen the user picked
+    # in Tablet PC Settings. The earlier "2 = mouse fallback"
+    # caused Win10/11 to load the HID Mouse class driver instead;
+    # mouse drivers interpret absolute X/Y as a delta cursor jump and
+    # silently drop most of the report, so the digitizer appeared
+    # non-functional at the host even though writes were succeeding.
     cfg.mkdir("functions/hid.usb1")
-    cfg.write("functions/hid.usb1/protocol", "2")  # Mouse (host fallback)
+    cfg.write("functions/hid.usb1/protocol", "3")  # Digitizer
     cfg.write("functions/hid.usb1/subclass", "0")  # Generic desktop / digitizer
     cfg.write("functions/hid.usb1/report_length", str(DIGITIZER_TABLET_REPORT_LEN))
     cfg.write("functions/hid.usb1/report_desc", DIGITIZER_TABLET_REPORT_DESC)

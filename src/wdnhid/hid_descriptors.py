@@ -86,55 +86,99 @@ BOOT_KEYBOARD_REPORT_LEN = 8
 
 
 # --------------------------------------------------------------------------- #
-# Digitizer / Tablet — single-finger absolute pointer
+# Digitizer / Tablet — single-finger absolute pointer (Precision Touch)
 # --------------------------------------------------------------------------- #
-# Report layout: 1 byte (tip|in_range|6 pad) + 2 bytes X (LE) + 2 bytes Y (LE)
-# Total: 5 bytes.
+# Report layout: 1 byte Contact Count + 1 byte (Tip Switch | Contact ID |
+# 3 pad bits) + 2 bytes X (LE) + 2 bytes Y (LE) = 6 bytes.
 #
 # Key choices:
-#   * Usage Page 0x0D (Digitizers), Usage 0x02 (Tablet) — the host
-#     recognises this as a *digitizer / tablet*, not a generic mouse.
-#     Earlier versions of this descriptor declared Usage Page 0x01 +
-#     Usage 0x02 (Mouse), which made Win10 attach a HID Mouse class
-#     driver but then refuse to start the device because absolute X/Y
-#     semantics don't fit a relative mouse.
-#   * Tip Switch + In Range bits in a single byte — matches the
-#     de-facto Wintab / Wacom report layout that every host has a
-#     driver for.
+#   * Usage Page 0x0D (Digitizers), Usage 0x04 (Touchscreen) — the host
+#     recognises this as a *touchscreen* and the host OS automatically
+#     routes Tip Switch + absolute X/Y as touch events. Earlier
+#     versions declared Usage 0x02 (Tablet/Pen), which made Win10/11
+#     attach a HID-compliant *pen* driver instead; pen drivers only
+#     surface events through the Wintab / Win32 pen stack and never
+#     route through the standard touch / mouse pipeline, so desktop
+#     apps (Start menu, Paint brushes, file-manager icon taps) saw
+#     nothing. Touchscreen is the only Usage the host treats as
+#     "user is poking the screen" without a manual Tablet PC Settings
+#     binding flip per device.
+#   * Win 8+ Precision Touch topology (Contact Count Maximum as a
+#     *Feature*, plus Contact Count as a per-report *Input* field).
+#     Earlier 5-byte descriptors without these fields made Windows
+#     mark the touch function "HID Input Device" / Status=Error
+#     because the driver couldn't parse a "no-contact frame exists"
+#     signal — it relied entirely on Contact Count transitions to
+#     distinguish tip-down from move-without-touch. Without both
+#     fields the touch driver rejects the device.
+#   * Logical Collection USAGE 0x22 (Finger). Earlier versions pushed
+#     USAGE 0x00 (Undefined / Reserved) before COLLECTION(Logical),
+#     which the Windows HID parser also rejects with Status=Error.
+#     Finger is the canonical Precision Touch choice.
 #   * Logical range 0..32767 — the HID spec max. We scale the
 #     user-supplied pixel coordinates into this range in
 #     :mod:`app.apps.usb_hid.service`.
 DIGITIZER_TABLET_REPORT_DESC: bytes = bytes([
     0x05, 0x0D,              # Usage Page (Digitizers)
-    0x09, 0x02,              # Usage (Tablet)
+    0x09, 0x04,              # Usage (Touchscreen)
     0xA1, 0x01,              # Collection (Application)
-    0x09, 0x01,              #   Usage (Pointer)
-    0xA1, 0x00,              #   Collection (Physical)
-    # tip switch (1 bit) + in range (1 bit) + 6 bits pad
-    0x05, 0x09,              #     Usage Page (Buttons)
-    0x19, 0x01,              #     Usage Minimum (1)
-    0x29, 0x01,              #     Usage Maximum (1)
+    # Contact Count Maximum (Feature) — declares the device's *maximum*
+    # concurrent contacts. Required for the Win 8+ Precision Touch driver
+    # to route this as a touchscreen instead of a generic digitizer.
+    0x05, 0x0D,              #   Usage Page (Digitizers)
+    0x09, 0x54,              #   Usage (Contact Count Maximum)
+    0x25, 0x01,              #   Logical Maximum (1)
+    0x15, 0x00,              #   Logical Minimum (0)
+    0x75, 0x08,              #   Report Size (8)
+    0x95, 0x01,              #   Report Count (1)
+    0xB1, 0x02,              #   Feature (Data, Variable, Absolute)
+    # Per-contact Logical Collection. USAGE 0x22 (Finger) is mandatory —
+    # USAGE 0x00 / Undefined was the prior bug that caused Status=Error.
+    0x05, 0x0D,              #   Usage Page (Digitizers)
+    0x09, 0x22,              #   Usage (Finger)
+    0xA1, 0x02,              #   Collection (Logical)
+    # Contact Count (Input) — current contacts *in this report*.
+    # Distinct from the Feature Max above. 1 = finger down, 0 = release.
+    # Without this field the host can't pair the report's X/Y with the
+    # "is there a contact" signal.
+    0x05, 0x0D,              #     Usage Page (Digitizers)
+    0x09, 0x55,              #     Usage (Contact Count)
     0x15, 0x00,              #     Logical Minimum (0)
     0x25, 0x01,              #     Logical Maximum (1)
+    0x75, 0x08,              #     Report Size (8)
     0x95, 0x01,              #     Report Count (1)
-    0x75, 0x01,              #     Report Size (1)
-    0x09, 0x42,              #     Usage (Tip Switch)
     0x81, 0x02,              #     Input (Data, Variable, Absolute)
-    0x09, 0x32,              #     Usage (In Range)
-    0x81, 0x02,              #     Input
-    0x95, 0x06,              #     Report Count (6) — pad to byte boundary
+    # Tip Switch — 1 bit
+    0x05, 0x0D,              #     Usage Page (Digitizers)
+    0x09, 0x42,              #     Usage (Tip Switch)
+    0x15, 0x00,              #     Logical Minimum (0)
+    0x25, 0x01,              #     Logical Maximum (1)
     0x75, 0x01,              #     Report Size (1)
+    0x95, 0x01,              #     Report Count (1)
+    0x81, 0x02,              #     Input (Data, Variable, Absolute)
+    # Contact Identifier — 4 bits (0..15)
+    0x05, 0x0D,              #     Usage Page (Digitizers)
+    0x09, 0x51,              #     Usage (Contact Identifier)
+    0x25, 0x0F,              #     Logical Maximum (15)
+    0x75, 0x04,              #     Report Size (4)
+    0x95, 0x01,              #     Report Count (1)
+    0x81, 0x02,              #     Input (Data, Variable, Absolute)
+    # Pad — 3 bits, constant zero (rounds byte 1 up to byte boundary)
+    0x75, 0x03,              #     Report Size (3)
+    0x95, 0x01,              #     Report Count (1)
     0x81, 0x01,              #     Input (Constant)
-    # X / Y (16-bit, 0..32767)
+    # X + Y — 16 bits each on the Generic Desktop page
     0x05, 0x01,              #     Usage Page (Generic Desktop)
     0x09, 0x30,              #     Usage (X)
     0x09, 0x31,              #     Usage (Y)
-    0x16, 0x00, 0x00,        #     Logical Minimum (0)
-    0x27, 0xFF, 0x7F, 0x00, 0x00,  # Logical Maximum (32767)
+    0x26, 0xFF, 0x7F,        #     Logical Maximum (32767)
     0x75, 0x10,              #     Report Size (16)
     0x95, 0x02,              #     Report Count (2)
     0x81, 0x02,              #     Input (Data, Variable, Absolute)
-    0xC0,                    #   End Collection (Physical)
+    0xC0,                    # End Collection (Logical)
     0xC0,                    # End Collection (Application)
 ])
-DIGITIZER_TABLET_REPORT_LEN = 5
+# Report layout: 1 byte Contact Count + 1 byte (Tip Switch | Contact ID | pad)
+# + 4 bytes X+Y = 6 bytes total. Must match the bytes written by
+# :class:`app.apps.usb_hid.service.DigitizerWriter._encode`.
+DIGITIZER_TABLET_REPORT_LEN = 6
