@@ -90,6 +90,86 @@ class GadgetError(RuntimeError):
 
 
 # --------------------------------------------------------------------------- #
+# Kernel capability probe
+# --------------------------------------------------------------------------- #
+def kernel_hid_gadget_support() -> dict[str, Optional[bool]]:
+    """Can this kernel do the USB HID gadget **at all**?
+
+    Two independent requirements, both of which can simply be missing
+    from a vendor kernel:
+
+    * ``CONFIG_USB_CONFIGFS_F_HID`` — configfs must offer the
+      ``hid.usbN`` function type.  Without it the gadget tree can't be
+      built at all: ``mkdir /sys/kernel/config/usb_gadget/<g>/functions/
+      hid.usb0`` fails with **ENOENT** ("No such file or directory"),
+      which reads like a typo but actually means "this kernel has no
+      HID function".
+    * the ``hidg`` driver (``CONFIG_USB_HIDG``) — it is what creates
+      ``/dev/hidgN``.  Without it the functions could be created but no
+      device node would ever appear.
+
+    Both are probed **read-only**:
+
+    * the driver registers a misc device named ``hidg`` → look for it
+      in ``/proc/misc`` (and ``/sys/class/hidg`` as a fallback);
+    * the config option is read from the *running* kernel's config
+      (``/proc/config.gz``, else ``/boot/config-$(uname -r)``).
+
+    Returns ``{"hidg": bool | None, "configfs_f_hid": bool | None}`` —
+    ``None`` means "could not determine" (e.g. no readable kernel
+    config), which callers must treat as "unknown", **not** as
+    "supported".
+    """
+    out: dict[str, Optional[bool]] = {"hidg": None, "configfs_f_hid": None}
+
+    # --- hidg driver --------------------------------------------------- #
+    hidg = False
+    try:
+        for line in Path("/proc/misc").read_text(encoding="utf-8").splitlines():
+            parts = line.split()
+            if len(parts) >= 2 and parts[1] == "hidg":
+                hidg = True
+                break
+    except OSError:
+        pass
+    if not hidg:
+        # /sys/class/hidg only exists once the driver registered its
+        # class — a second, independent confirmation.
+        hidg = Path("/sys/class/hidg").is_dir()
+    out["hidg"] = hidg
+
+    # --- configfs HID function ------------------------------------------ #
+    cfg_text = ""
+    try:
+        import gzip
+
+        cfg_text = gzip.open("/proc/config.gz", "rt", encoding="utf-8").read()
+    except Exception:  # noqa: BLE001 — no config.gz, or not gzip
+        try:
+            cfg_text = Path(
+                f"/boot/config-{os.uname().release}"
+            ).read_text(encoding="utf-8")
+        except OSError:
+            cfg_text = ""
+    if cfg_text:
+        # A kernel config lists every option it knows about: enabled
+        # ones as ``CONFIG_X=y``, disabled ones as the commented
+        # ``# CONFIG_X is not set``.  An option that is *absent* from
+        # the file entirely was never offered by this kernel (its
+        # parent option was off) — that counts as "not supported" too.
+        for line in cfg_text.splitlines():
+            if line.startswith("CONFIG_USB_CONFIGFS_F_HID="):
+                out["configfs_f_hid"] = line.split("=", 1)[1].strip() == "y"
+                break
+            if line.startswith("# CONFIG_USB_CONFIGFS_F_HID is not set"):
+                out["configfs_f_hid"] = False
+                break
+        else:
+            out["configfs_f_hid"] = False
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Configfs helper
 # --------------------------------------------------------------------------- #
 class _Configfs:
@@ -396,6 +476,11 @@ def gadget_status() -> dict[str, Any]:
         "configfs_mounted": CONFIGFS_MOUNT.is_mount(),
         "udcs_available": list_udcs(),
         "gadget_path": str(gadget_root),
+        # Whether this kernel can do the HID gadget at all.  When it
+        # can't, "run the setup script" is the wrong advice — the script
+        # dies at `mkdir functions/hid.usb0` with ENOENT.  See
+        # :func:`kernel_hid_gadget_support`.
+        "kernel_support": kernel_hid_gadget_support(),
     }
     if not gadget_root.exists():
         out["present"] = False
