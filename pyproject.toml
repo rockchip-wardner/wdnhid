@@ -30,8 +30,9 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://example.invalid/wdnhid"
-Issues = "https://example.invalid/wdnhid/issues"
+Homepage = "https://github.com/rockchip-wardner/wdnhid"
+Repository = "https://github.com/rockchip-wardner/wdnhid"
+Issues = "https://github.com/rockchip-wardner/wdnhid/issues"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

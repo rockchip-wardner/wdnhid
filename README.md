@@ -40,7 +40,13 @@ It does **not**:
 
 ## Install
 
-Editable, into the project's virtualenv:
+Editable, straight from GitHub (recommended):
+
+```bash
+pip install -e "git+ssh://git@github.com/rockchip-wardner/wdnhid.git#egg=wdnhid"
+```
+
+Or from an existing checkout:
 
 ```bash
 pip install -e /path/to/wdnhid
