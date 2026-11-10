@@ -1,3 +1,5 @@
+[English](README.md) | [简体中文](README_CN.md)
+
 # wdnhid
 
 Python library for driving Linux USB Gadget HID functions through
@@ -43,7 +45,7 @@ It does **not**:
 Editable, straight from GitHub (recommended):
 
 ```bash
-pip install -e "git+ssh://git@github.com/rockchip-wardner/wdnhid.git#egg=wdnhid"
+pip install -e "git+ssh://git@github.com:rockchip-wardner/wdnhid.git#egg=wdnhid"
 ```
 
 Or from an existing checkout:
@@ -74,10 +76,10 @@ manager.setup_gadget(vid=0x1D6B, pid=0x0103,
 # 2. Write an 8-byte boot-keyboard report.
 fd = manager.get_chardev_fd("keyboard")
 manager.safe_write(fd, bytes([0, 0, kc.KEYCODES["h"],
-                                 kc.KEYCODES["e"],
-                                 kc.KEYCODES["l"],
-                                 kc.KEYCODES["l"],
-                                 kc.KEYCODES["o"], 0]))
+                                kc.KEYCODES["e"],
+                                kc.KEYCODES["l"],
+                                kc.KEYCODES["l"],
+                                kc.KEYCODES["o"], 0]))
 manager.safe_write(fd, bytes([0, 0, 0, 0, 0, 0, 0, 0]))   # release
 
 # 3. Move an absolute-pointer digitizer.
@@ -99,4 +101,4 @@ manager.teardown_gadget()
 
 ## License
 
-Apache-2.0.
+Apache-2.0. See [LICENSE](LICENSE).
