@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wdnhid"
-version = "0.1.0"
+version = "0.1.1"
 description = "USB Gadget HID bindings for Linux: write HID reports to /dev/hidgN to simulate keyboard / mouse / digitizer / etc. on the host side via OTG."
 readme = "README.md"
 requires-python = ">=3.10"

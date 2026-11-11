@@ -59,7 +59,7 @@ Wheel build (for distribution):
 ```bash
 cd /path/to/wdnhid
 python -m build
-pip install dist/wdnhid-0.1.0-*.whl
+pip install dist/wdnhid-0.1.1-*.whl
 ```
 
 ## Quick start
